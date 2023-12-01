@@ -31,13 +31,23 @@ raw_input = file_input.splitlines()
 def part1(input):
     total = 0
     for l in input:
-        calib = []
         digits = [c for c in l if c.isdigit()]
-        calib.append(digits[0])
-        # if len(digits) > 1:
-        calib.append(digits[-1])
-        total = int(total) + int("".join(calib))
+        total += int(digits[0] + digits[-1])
     print(total)
+
+
+def find_digit(l, d, reverse=False):
+    range_ = range(len(l), -1, -1) if reverse else range(len(l) + 1)
+
+    # find first digit
+    for i in range_:
+        substr = l[i:] if reverse else l[:i]
+        digit = next((int(ch) for ch in substr if ch.isdigit()), False)
+        if not digit:
+            digit = next((v for k, v in d.items() if k in substr), False)
+        if digit:
+            return digit
+    return False
 
 
 def part2(input):
@@ -53,42 +63,14 @@ def part2(input):
         "eight": 8,
         "nine": 9,
     }
-    for l in input:
-        first = False
-        last = False
-
-        # find first digit
-        for i in range(len(l) + 1):
-            substr = l[0:i]
-
-            # check for digit
-            first = next((int(ch) for ch in substr if ch.isdigit()), False)
-
-            # check for string digit
-            if not first:
-                first = next((v for k, v in d.items() if k in substr), False)
-
-            if first:
-                break
-
-        # find last digit
-        for i in range(1, len(l)):
-            substr = l[-i:]
-
-            # check for digit
-            last = next((int(ch) for ch in substr if ch.isdigit()), False)
-
-            # check for string digit
-            if not last:
-                last = next((v for k, v in d.items() if k in substr), False)
-            if last:
-                break
-
-        fl = [str(first), str(last or first)]
-        total += int("".join(fl))
+    for line in input:
+        first = find_digit(line, d)
+        last = find_digit(line, d, True)
+        total += int(str(first) + str(last or first))
+        # print(line, first, last)
     print(total)
 
 
 if __name__ == "__main__":
-    part1(raw_input)
+    # part1(raw_input)
     part2(raw_input)
