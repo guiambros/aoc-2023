@@ -5,7 +5,7 @@ import os
 import requests
 from colorama import Fore, Style
 
-COOKIE = "53616c7465645f5f8dd6a9e88bf573bc2646543316bade331b34a0385d4507db0a7fd055d1f894e3b6789582ed2475963b4f835249d033729dd127e2a9709143"
+COOKIE = "53616c7465645f5f1ae0e4e520ea78d5da10e12a3d78795d124fe39f805427fccac228578ae61bdc74ecddaaefceb213b653f8f65aa3d0b0268543f31567c263"
 HEADERS = {"cookie": f"session={COOKIE}", }
 CURRENT_DIR = os.getcwd()
 

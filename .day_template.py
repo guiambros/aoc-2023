@@ -30,19 +30,19 @@ input = open(f"day{day}/input_{year}_{day}.txt", "r").read()
 # input = [int(i) for i in input]
 
 
-def part1():
+def part1(input):
     print(f"Part 1: {None}")
     pass
 
 
-def part2():
+def part2(input):
     print(f"Part 2: {None}")
     pass
 
 
 if __name__ == "__main__":
-    part1()
-    part2()
+    part1(input)
+    part2(input)
 
 # Example of an input that requires regex parsing
 # Format:
