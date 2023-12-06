@@ -1,9 +1,5 @@
 import operator
-import os
-import re
 import sys
-from collections import defaultdict
-from copy import deepcopy
 from functools import reduce
 
 # get current day
