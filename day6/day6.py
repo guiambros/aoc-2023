@@ -26,7 +26,6 @@ def part1(input):
                 wins += 1
         ways_to_wins.append(wins)
     print(f"Part 1: ways to win {ways_to_wins} == {reduce(operator.mul, ways_to_wins)}")
-    pass
 
 
 def part2(input):
@@ -53,8 +52,7 @@ def part2(input):
             print("found point we start losing (high bound) == ", t_wait)
             break
 
-    print(f"Part 2: {high - low+1}")
-    pass
+    print(f"Part 2: {high-low+1}")
 
 
 if __name__ == "__main__":
