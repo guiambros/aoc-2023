@@ -20,13 +20,16 @@ day = int(re.search("\\/day(\\d+)", cwd).group(1))
 input = open(f"day{day}/input_{year}_{day}.txt", "r").read()
 # input = open(f"day{day}/input_{year}_{day}_test.txt", "r").read()
 
-# input in multiple lines
+# -- input in multiple lines
 # input = [line for line in input.splitlines()]
 
-# input in a single line
+# -- convert multi-line elements to int
+# input = [[int(c) for c in row.split(" ")] for row in input]
+
+# -- input in a single line
 # input = [line for line in input.split(",")]
 
-# convert list to int
+# -- convert single line list to int
 # input = [int(i) for i in input]
 
 
@@ -43,16 +46,3 @@ def part2(input):
 if __name__ == "__main__":
     part1(input)
     part2(input)
-
-# Example of an input that requires regex parsing
-# Format:
-#   kvlbq (22)
-#   rdrad (6) -> gwyfm, fozyip, uotzz, fmkkz
-#   oqbfkud (470) -> rnbqhk, mepez, mnksdxf, mjsck, bbfaxid, nglea
-#   zzjyw (91)
-#
-# t = dict( \
-#    (m[0], (int(m[1]), m[3].split(", ") if m[3] else [])) \
-#       for m in [re.match("(\w+) \((\d+)\)( -> ((\w+, )*\w+))?", l).groups() \
-#       for l in d] \
-# )
