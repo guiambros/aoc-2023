@@ -13,28 +13,21 @@ if not ("day" in cwd):
     sys.exit(0)
 
 # read input data
-# year = int(re.search("\\d{4}", cwd).group(0))
-# day = int(re.search("\\/day(\\d+)", cwd).group(1))
-year = "2023"
-day = "8"
+year = int(re.search("\\d{4}", cwd).group(0))
+day = int(re.search("\\/day(\\d+)", cwd).group(1))
 
 input = open(f"day{day}/input_{year}_{day}.txt", "r").read()
-# input = open(f"day{day}/input_{year}_{day}_test.txt", "r").read()
-
-# input in multiple lines
 input = [line for line in input.splitlines()]
 
 import itertools
 
 
-def part1(M, directions_queue):
-    dst = "ZZZ"
+def part1(M, path_iter):
     cnt = 0
-    path = itertools.cycle(directions_queue)
     current_node = "AAA"
-    while current_node != dst:
-        pathLR = next(path)
-        print("Visiting", current_node, "taking path ", "R" if pathLR == 1 else "L")
+    while current_node != "ZZZ":
+        pathLR = next(path_iter)
+        # print(f"Visiting { current_node } taking path {'R' if pathLR == 1 else 'L' }")
         current_node = M[current_node][pathLR]
         cnt += 1
     print(f"Part 1: {cnt}")
@@ -61,7 +54,7 @@ def part2(M, directions_queue):
         while found == False:
             idx = ptr % len(directions_queue)
             if ((node, idx)) in visited2:
-                print(f"Found cycle for {cur_nodes[i]} at {ptr} times")
+                # print(f"Found cycle for {cur_nodes[i]} at {ptr} times")
                 lcm.append(ptr)
                 found = True
                 break
@@ -71,7 +64,7 @@ def part2(M, directions_queue):
             node = M[node][pathLR]
         break
 
-    print(f"Part 2: lcm of {lcm}")
+    # print(f"Part 2: lcm of {lcm}")
     pass
 
     path = itertools.cycle(directions_queue)
@@ -87,9 +80,9 @@ def part2(M, directions_queue):
             visited2.append((cur_node, idx))
             cycle_len += 1
             pathLR = next(path)
-            print(f"Visiting {cur_node}, taking path { 'R' if pathLR == 1 else 'L'}")
+            # print(f"Visiting {cur_node}, taking path { 'R' if pathLR == 1 else 'L'}")
             cur_node = M[cur_node][pathLR]
-        print(f"Found cycle for cursor {node} at {cycle_len} times")
+        # print(f"Found cycle for cursor {node} at {cycle_len} times")
         lcm.append(cycle_len)
     # lcm_d = reduce(lambda x, y: x * y // math.gcd(x, y), lcm)
     print(f"Part 2: lcm of {lcm} == {lcm_d}")
@@ -97,14 +90,17 @@ def part2(M, directions_queue):
 
 
 if __name__ == "__main__":
-    directions_queue = [int(c.replace("L", "0").replace("R", "1")) for c in input[0]]
-    i = 2
     M = dict()
+    # parse the first line
+    directions = [int(c.replace("L", "0").replace("R", "1")) for c in input[0]]
+    path_iter = itertools.cycle(directions)
+
+    # parse the remaining lines
+    i = 2
     while i < len(input):
         l = input[i].replace("= (", "").replace(",", "").replace(")", "").split(" ")
         dst, pathL, pathR = l[0], l[1], l[2]
         M[dst] = (pathL, pathR)
         i += 1
-    print(M)
-    # part1(M, directions_queue)
-    part2(M, directions_queue)
+    part1(M, path_iter)
+    # part2(M, directions_queue)
