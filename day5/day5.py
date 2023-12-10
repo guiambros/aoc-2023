@@ -85,36 +85,36 @@ def map_seeds_ranges(seed_intervals, rule_set):
     new_intervals = []
 
     while seed_intervals:
-        x0, x_delta = seed_intervals.pop(0)
-        x1 = x0 + x_delta
+        s0, s_delta = seed_intervals.pop(0)
+        s1 = s0 + s_delta
         found = False
         for r in rule_set:
-            y0, y_delta, dst = r
-            y1 = y0 + y_delta
+            r0, r_delta, dst = r
+            r1 = r0 + r_delta
 
-            if x0 < y0 and x1 > y0:  # case 1 - rule overlaps interval end
+            if s0 < r0 and s1 > r0:  # case 1 - seed interval starts before rule block and overlaps
                 found = True
-                new_intervals.append((x0, y0 - x0, x0))
-                new_intervals.append((y0, min(x1 - y0 + 1, y_delta), dst))
-                if x1 > y1:  # interval extends beyond rule
-                    new_intervals.append((y1, x1 - y1, y1))
+                new_intervals.append((s0, r0 - s0, s0))
+                new_intervals.append((r0, min(s1 - r0 + 1, r_delta), dst))
+                if s1 > r1:  # interval extends beyond rule
+                    new_intervals.append((r1, s1 - r1, r1))
 
-            elif x0 > y0 and x0 < y1:  # rule overlaps interval start
+            elif s0 > r0 and s0 < r1:  # case 2 - seed interval starts in the middle of rule block
                 found = True
-                if x1 < y1:
-                    new_intervals.append((x0, x_delta, dst + (x0 - y0)))
+                if s1 < r1:
+                    new_intervals.append((s0, s_delta, dst + (s0 - r0)))
                 else:
-                    new_intervals.append((x0, y1 - x0, dst + (x0 - y0)))
-                    new_intervals.append((y1, x1 - y1, y1))
+                    new_intervals.append((s0, r1 - s0, dst + (s0 - r0)))
+                    new_intervals.append((r1, s1 - r1, r1))
 
-            elif x0 < y0 and x1 > y1:  # rule entirely enclosed in interval
+            elif s0 < r0 and s1 > r1:  # case 3 - seed interval spans the entire rule block
                 found = True
-                new_intervals.append((x0, y0 - x0, x0))
-                new_intervals.append((y0, y_delta, dst))
-                new_intervals.append((y1, x1 - y1, y1))
+                new_intervals.append((s0, r0 - s0, s0))
+                new_intervals.append((r0, r_delta, dst))
+                new_intervals.append((r1, s1 - r1, r1))
 
         if not found:
-            new_intervals.append((x0, x_delta, x0))
+            new_intervals.append((s0, s_delta, s0))
 
     new_intervals = [(dst, rg) for st, rg, dst in new_intervals]
     return new_intervals
