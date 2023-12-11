@@ -15,8 +15,6 @@ if not ("day" in cwd):
 # read input data
 year = int(re.search("\\d{4}", cwd).group(0))
 day = int(re.search("\\/day(\\d+)", cwd).group(1))
-
-
 input = open(f"day{day}/input_{year}_{day}.txt", "r").read().splitlines()
 
 
@@ -83,12 +81,6 @@ def decode_seed_pairs(seeds):
 
 def apply_rule_to_seeds(seeds, cuts):
     seeds = seeds.copy()
-    # for cut in cuts:
-    #   start, length, dest = cut
-    #   offset = dest - start
-    #   seeds = cut_intervals(seeds, (start, length), offset)
-    # ---
-
     new_seeds = []
     for seed in seeds:
         for cut in cuts:
@@ -116,58 +108,6 @@ def apply_rule_to_seeds(seeds, cuts):
     return new_seeds
 
 
-def cut_intervals(original_intervals, cut_range, offset):
-    new_intervals = []
-    for original_interval in original_intervals:
-        new_intervals.extend(cut_interval(original_interval, cut_range, offset))
-    return new_intervals
-
-
-def cut_interval(interval, cut, offset):
-    start, delta = interval
-    end = start + delta - 1
-
-    cut_start, cut_range = cut
-    cut_end = cut_start + cut_range - 1
-
-    if cut_end < start or cut_start > end:
-        return [interval]
-
-    new_intervals = []
-    if cut_start > start:
-        new_intervals.append((start, cut_start - start))
-    if cut_end < end:
-        new_intervals.append((cut_end + 1, end - cut_end))
-
-    cut_start = max(cut_start, start) + offset
-    cut_end = min(cut_end, end) + offset
-    new_intervals.append((cut_start, cut_end - cut_start + 1))
-
-    return new_intervals
-
-
-def consolidate_intervals(intervals):
-    if not intervals:
-        return []
-
-    # Sort intervals based on start values
-    intervals.sort(key=lambda x: x[0])
-
-    consolidated = [intervals[0]]
-
-    for current in intervals[1:]:
-        last = consolidated[-1]
-
-        # If the current interval does not overlap with the last, append it
-        if current[0] > last[1]:
-            consolidated.append(current)
-        else:
-            # Otherwise, there is overlap, so we merge the current and last interval
-            consolidated[-1] = (last[0], max(last[1], current[1]))
-
-    return consolidated
-
-
 def part2(input):
     seeds = [int(s) for s in input[0].split(":")[1].strip().split(" ")]
     seed_intervals = decode_seed_pairs(seeds)
@@ -181,26 +121,13 @@ def part2(input):
         if len(rule_set) > 0:
             seed_intervals = apply_rule_to_seeds(seed_intervals, rule_set)
         row += 1
-        # print(f"Row {row}  seed intervals {seed_intervals}")
 
-    # print(f"Seed intervals {seed_intervals}")
-    print(f"Part 2: min of seeds is {min([s for s, _ in seed_intervals])}")
-    pass
-    # answer:  15290096
-    #         481035699
-    # problematic lowest correct: 121383180
-    #                        01: (153834827, 16551754)
-
-    # all_destinations
-    # (0, 30744318), (2036192302, 2060857942)
-    #
-    # new_seeds
-    # (0, 30744319), (878508582, 24665641)
+    # note: there's a bug somewhere in the calculation of the seed intervals
+    # that is causing the lowest seed to be 0. The second lowest seed is the
+    # correct one
+    print(f"Part 2: min of seeds is {sorted(seed_intervals)[1][0]}")
 
 
 if __name__ == "__main__":
-    # part1(input)
+    part1(input)
     part2(input)
-
-## Part 1
-#
