@@ -81,43 +81,91 @@ def decode_seed_pairs(seeds):
     return new_seeds
 
 
-def map_seeds_ranges(seed_intervals, rule_set):
+def apply_rule_to_seeds(seeds, cuts):
+    seeds = seeds.copy()
+    # for cut in cuts:
+    #   start, length, dest = cut
+    #   offset = dest - start
+    #   seeds = cut_intervals(seeds, (start, length), offset)
+    # ---
+
+    new_seeds = []
+    for seed in seeds:
+        for cut in cuts:
+            start, delta = seed
+            end = start + delta - 1
+
+            cut_start, cut_range, dest = cut
+            offset = dest - cut_start
+            cut_end = cut_start + cut_range - 1
+
+            if cut_end < start or cut_start > end or cut_range == 0:
+                continue
+
+            if cut_start > start:
+                new_seeds.append((start, cut_start - start))
+            if cut_end < end:
+                new_seeds.append((cut_end + 1, end - cut_end))
+
+            cut_start = max(cut_start, start) + offset
+            cut_end = min(cut_end, end) + offset
+            new_seeds.append((cut_start, cut_end - cut_start + 1))
+            break
+        else:
+            new_seeds.append(seed)
+    return new_seeds
+
+
+def cut_intervals(original_intervals, cut_range, offset):
     new_intervals = []
-
-    while seed_intervals:
-        s0, s_delta = seed_intervals.pop(0)
-        s1 = s0 + s_delta
-        found = False
-        for r in rule_set:
-            r0, r_delta, dst = r
-            r1 = r0 + r_delta
-
-            if s0 < r0 and s1 > r0:  # case 1 - seed interval starts before rule block and overlaps
-                found = True
-                new_intervals.append((s0, r0 - s0, s0))
-                new_intervals.append((r0, min(s1 - r0 + 1, r_delta), dst))
-                if s1 > r1:  # interval extends beyond rule
-                    new_intervals.append((r1, s1 - r1, r1))
-
-            elif s0 > r0 and s0 < r1:  # case 2 - seed interval starts in the middle of rule block
-                found = True
-                if s1 < r1:
-                    new_intervals.append((s0, s_delta, dst + (s0 - r0)))
-                else:
-                    new_intervals.append((s0, r1 - s0, dst + (s0 - r0)))
-                    new_intervals.append((r1, s1 - r1, r1))
-
-            elif s0 < r0 and s1 > r1:  # case 3 - seed interval spans the entire rule block
-                found = True
-                new_intervals.append((s0, r0 - s0, s0))
-                new_intervals.append((r0, r_delta, dst))
-                new_intervals.append((r1, s1 - r1, r1))
-
-        if not found:
-            new_intervals.append((s0, s_delta, s0))
-
-    new_intervals = [(dst, rg) for st, rg, dst in new_intervals]
+    for original_interval in original_intervals:
+        new_intervals.extend(cut_interval(original_interval, cut_range, offset))
     return new_intervals
+
+
+def cut_interval(interval, cut, offset):
+    start, delta = interval
+    end = start + delta - 1
+
+    cut_start, cut_range = cut
+    cut_end = cut_start + cut_range - 1
+
+    if cut_end < start or cut_start > end:
+        return [interval]
+
+    new_intervals = []
+    if cut_start > start:
+        new_intervals.append((start, cut_start - start))
+    if cut_end < end:
+        new_intervals.append((cut_end + 1, end - cut_end))
+
+    cut_start = max(cut_start, start) + offset
+    cut_end = min(cut_end, end) + offset
+    new_intervals.append((cut_start, cut_end - cut_start + 1))
+
+    return new_intervals
+
+
+def consolidate_intervals(intervals):
+    if not intervals:
+        return []
+
+    # Sort intervals based on start values
+    intervals.sort(key=lambda x: x[0])
+
+    consolidated = [intervals[0]]
+
+    for current in intervals[1:]:
+        last = consolidated[-1]
+
+        # If the current interval does not overlap with the last, append it
+        if current[0] > last[1]:
+            consolidated.append(current)
+        else:
+            # Otherwise, there is overlap, so we merge the current and last interval
+            consolidated[-1] = (last[0], max(last[1], current[1]))
+
+    return consolidated
 
 
 def part2(input):
@@ -131,15 +179,27 @@ def part2(input):
         if ":" in line:
             rule_set, row = read_rules(input, row + 1)
         if len(rule_set) > 0:
-            seed_intervals = map_seeds_ranges(seed_intervals, rule_set)
+            seed_intervals = apply_rule_to_seeds(seed_intervals, rule_set)
         row += 1
+        # print(f"Row {row}  seed intervals {seed_intervals}")
 
+    # print(f"Seed intervals {seed_intervals}")
     print(f"Part 2: min of seeds is {min([s for s, _ in seed_intervals])}")
     pass
+    # answer:  15290096
+    #         481035699
+    # problematic lowest correct: 121383180
+    #                        01: (153834827, 16551754)
+
+    # all_destinations
+    # (0, 30744318), (2036192302, 2060857942)
+    #
+    # new_seeds
+    # (0, 30744319), (878508582, 24665641)
 
 
 if __name__ == "__main__":
-    part1(input)
+    # part1(input)
     part2(input)
 
 ## Part 1
