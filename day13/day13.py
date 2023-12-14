@@ -38,6 +38,7 @@ def read_input(input):
 
 
 def scan_horizontal(mirror):
+    # transpose and call scan_vertical
     return scan_vertical(mirror, ishorizontal=True)
 
 
