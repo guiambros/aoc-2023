@@ -1,10 +1,6 @@
-import operator
 import os
 import re
 import sys
-from collections import defaultdict
-from copy import deepcopy
-from functools import reduce
 
 # get current day
 cwd = sys.argv[0]
@@ -23,20 +19,16 @@ M = [[ch for ch in row] for row in input]
 h = len(M)
 w = len(M[0])
 
-pos, dir = {}, {}
-pos = (0, 0)
-dir = "E"
 energized = set()
-num_beams = 1
 reflected_beams = []
 
 
 def reflect_beam(pos, dir):
+    # avoid infinite loops
     if (pos, dir) in reflected_beams:
-        print("already reflected beam", pos, dir)
         return
-    reflected_beams.append((pos, dir))
-    print("reflecting beam", pos, dir)
+    else:
+        reflected_beams.append((pos, dir))
 
     while True:
         r, c = pos
@@ -72,17 +64,14 @@ def reflect_beam(pos, dir):
         elif (ch == "-" and dir in ["S", "N"]) or (M[r][c] == "|" and dir in ["E", "W"]):
             # split beams
             new_dirs = split_beam_dir(dir)
-            # map(lambda x: reflect_beam(pos, x), new_dirs)
             reflect_beam(pos, new_dirs[0])
             reflect_beam(pos, new_dirs[1])
             break
 
-        # move beams forward
         pos, dir = move_beam(pos, dir)
 
 
 def split_beam_dir(dir):
-    # M[r][c] == "-" and dir in ["S", "N"] or M[r][c] == "|" and dir in ["E", "W"]:
     if dir in ["E", "W"]:
         return ["N", "S"]
     elif dir in ["N", "S"]:
@@ -97,9 +86,7 @@ def move_beam(pos, dir):
     return new_pos, dir
 
 
-def part1(input):
-    reflect_beam(pos, dir)
-    print(f"Part 1: {len(energized)}\n\n")
+def print_map(M):
     for r in range(len(M)):
         for c in range(len(M[0])):
             if (r, c) in energized and M[r][c] == ".":
@@ -108,12 +95,46 @@ def part1(input):
                 ch = M[r][c]
             print(ch, end="")
         print("")
-    pass
+
+
+def part1(input):
+    pos = (0, 0)
+    dir = "E"
+    reflect_beam(pos, dir)
+    print_map(M)
+    print(f"Part 1: {len(energized)}\n\n")
 
 
 def part2(input):
-    print(f"Part 2: {None}")
-    pass
+    global energized, reflected_beams
+
+    # test all possible starting points
+    max_energized = 0
+    best_pos = None
+
+    # top and bottom row
+    for r in [0, h - 1]:
+        for c in range(w):
+            energized = set()
+            reflected_beams = []
+            reflect_beam((r, c), "S")
+            if len(energized) > max_energized:
+                print("new max", len(energized))
+                max_energized = len(energized)
+                best_pos = (r, c)
+
+    # left and right column
+    for c in [0, w - 1]:
+        for r in range(h):
+            energized = set()
+            reflected_beams = []
+            reflect_beam((r, c), "S")
+            if len(energized) > max_energized:
+                print("new max", len(energized))
+                max_energized = len(energized)
+                best_pos = (r, c)
+
+    print(f"Part 2: best pos {best_pos} with {max_energized}")
 
 
 if __name__ == "__main__":
