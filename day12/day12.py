@@ -5,7 +5,7 @@ import sys
 import time
 from collections import defaultdict
 from copy import deepcopy
-from functools import lru_cache, reduce
+from functools import cache, lru_cache, reduce
 
 # get current day
 cwd = sys.argv[0]
@@ -23,11 +23,12 @@ input = [line for line in input.splitlines()]
 M = [(line.split(" ")[0], line.split(" ")[1]) for line in input]
 
 
-@lru_cache(maxsize=None)
+@cache
 def get_block(breakdown_str):
     return breakdown_str.split(",")
 
 
+@cache
 def is_valid(s, breakdown):
     def count_blocks(s):
         s = s.strip(".") + "."
@@ -47,7 +48,7 @@ def is_valid(s, breakdown):
     return tuple(count_blocks(s)) == breakdown
 
 
-@lru_cache(maxsize=None)
+@cache
 def fuzz(s, size):
     combinations = []
     if len(s) == size and s.find("?") == -1:
@@ -60,6 +61,7 @@ def fuzz(s, size):
     return combinations
 
 
+@cache
 def cnt_valid_combinations(s, breakdown):
     combinations = fuzz(s, len(s))
     valid_combinations = 0
