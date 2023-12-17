@@ -6,6 +6,7 @@ import time
 from collections import defaultdict
 from copy import deepcopy
 from functools import cache, lru_cache, reduce
+from multiprocessing import Pool
 
 # get current day
 cwd = sys.argv[0]
@@ -23,12 +24,10 @@ input = [line for line in input.splitlines()]
 M = [(line.split(" ")[0], line.split(" ")[1]) for line in input]
 
 
-@cache
 def get_block(breakdown_str):
     return breakdown_str.split(",")
 
 
-@cache
 def is_valid(s, breakdown):
     def count_blocks(s):
         s = s.strip(".") + "."
@@ -48,7 +47,6 @@ def is_valid(s, breakdown):
     return tuple(count_blocks(s)) == breakdown
 
 
-@cache
 def fuzz(s, size):
     combinations = []
     if len(s) == size and s.find("?") == -1:
@@ -61,7 +59,6 @@ def fuzz(s, size):
     return combinations
 
 
-@cache
 def cnt_valid_combinations(s, breakdown):
     combinations = fuzz(s, len(s))
     valid_combinations = 0
@@ -71,14 +68,19 @@ def cnt_valid_combinations(s, breakdown):
     return valid_combinations
 
 
-def part1(input):
-    valid_combinations = []
-    for i, (s, breakdown) in enumerate(M):
-        breakdown = tuple([int(b) for b in breakdown.split(",")])
-        valid_combinations.append(cnt_valid_combinations(s, breakdown))
-        print(f"{i}: {s} ({breakdown}) = {valid_combinations[-1]}")
+def solve_multip(i):
+    (s, breakdown) = M[i]
+    breakdown = tuple([int(b) for b in breakdown.split(",")])
+    valid_combinations = cnt_valid_combinations(s, breakdown)
+    print(f"{i}: {s} ({breakdown}) = {valid_combinations}")
+    return valid_combinations
 
-    print(f"Part 1: {sum(valid_combinations)}")
+
+def part1(input):
+    total = 0
+    with Pool(processes=12) as p:
+        total += sum(p.map(solve_multip, range(len(M))))
+    print(f"Part 1: {total}")
 
 
 def part2(input):
