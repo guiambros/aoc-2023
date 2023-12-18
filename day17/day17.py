@@ -1,9 +1,7 @@
 import heapq
-import math
 import operator
 import re
 import sys
-from queue import PriorityQueue
 
 # get current day
 cwd = sys.argv[0]
@@ -17,6 +15,8 @@ day = int(re.search("\\/day(\\d+)", cwd).group(1))
 
 
 def dijkstra(M, start, dest, at_least=1, at_most=3):
+    # inspired by u/xelf's comments here:
+    # https://www.reddit.com/r/adventofcode/comments/18k9ne5/comment/kdq86mr/
     h, w, tick = len(M), len(M[0]), 0
     Q = [(0, start, [start], (0, 0))]
     visited = set()
@@ -33,8 +33,7 @@ def dijkstra(M, start, dest, at_least=1, at_most=3):
             continue
 
         visited.add((pos, dir))
-        px, py = dir
-        dirs = {(1, 0), (0, 1), (-1, 0), (0, -1)} - {(px, py), (-px, -py)}
+        dirs = {(1, 0), (0, 1), (-1, 0), (0, -1)} - {(dir[0], dir[1]), (-dir[0], -dir[1])}
         for d in dirs:
             new_pos, new_cost = pos, cost
             for i in range(1, at_most + 1):
@@ -60,14 +59,16 @@ def print_map(M, path):
 
 
 def part1_and_2(M):
-    best_cost, path = dijkstra(M, (0, 0), (h - 1, w - 1))
-    print(f"Part 1: {best_cost}")
+    best_cost1, path = dijkstra(M, (0, 0), (h - 1, w - 1))
+    print("\n\nPart 1 --- map\n")
     print_map(M, path)
 
     # pt2
-    best_cost, path = dijkstra(M, (0, 0), (h - 1, w - 1), 4, 10)
-    print(f"Part 2: {best_cost}")
+    best_cost2, path = dijkstra(M, (0, 0), (h - 1, w - 1), 4, 10)
+    print("\n\nPart 2 --- map\n")
     print_map(M, path)
+    print(f"Part 1: {best_cost1}")
+    print(f"Part 2: {best_cost2}")
 
 
 if __name__ == "__main__":
