@@ -129,11 +129,20 @@ def tilt_cycle_orig(M, n=1):
 
 
 def tilt_cycle(M, n=1):
-    for _ in range(n * 4):
-        print_map(M)
-        M = tilt(M)
-        M = rotate_map_clockwise(M)
-    print_map(M)
+    cache = {}
+    cycle_cache = {}
+    cycle_start, cycle_end = float("inf"), float("-inf")
+    cycle = None
+    for _ in range(n):
+        h = hashlib.sha256(str(M).encode()).hexdigest()
+        if h in cache:
+            # do something with the cycle
+            pass
+        else:
+            cache[h] = deepcopy(M)
+            for _ in range(4):
+                M = tilt(M)
+                M = rotate_map_clockwise(M)
     return M
 
 
@@ -144,8 +153,8 @@ def print_map(M):
 
 
 def part2(M):
-    # M = tilt_cycle(M, 1000000000)
-    M = tilt_cycle(M, 3)
+    M = tilt_cycle(M, 1000000000)
+    # M = tilt_cycle(M, 3)
     score = calculate_score(M)
     # print(f"Map:\n{M}\n\n")
     # print(["".join(row) for row in M])
