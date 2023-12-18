@@ -5,7 +5,7 @@ import re
 import sys
 from collections import defaultdict
 from copy import deepcopy
-from functools import lru_cache, reduce
+from functools import cache, lru_cache, reduce
 
 # get current day
 cwd = sys.argv[0]
@@ -82,6 +82,7 @@ def part1(M):
     # pass
 
 
+@cache
 def tilt(M):
     h = len(M)
     w = len(M[0])
@@ -143,6 +144,8 @@ def tilt_cycle(M, n=1):
             for _ in range(4):
                 M = tilt(M)
                 M = rotate_map_clockwise(M)
+                h = hashlib.sha256(str(M).encode()).hexdigest()
+
     return M
 
 
