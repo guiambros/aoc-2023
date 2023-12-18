@@ -66,18 +66,18 @@ GPS = {"N": (-1, 0), "S": (1, 0), "E": (0, 1), "W": (0, -1)}
 reverse = {"N": "S", "S": "N", "E": "W", "W": "E"}
 
 
-def dijkstra3(board, M, start, dest):
-    tick = 0
+def dijkstra3(board, M, start, dest, at_least=1, at_most=3):
+    t = 0
     h, w = len(M), len(M[0])
-    Q = []
     Q = [(0, start, [start], (0, 0))]
     visited = set()
 
     while Q:
-        tick += 1
+        t += 1
         cost, pos, path, dir = heapq.heappop(Q)
 
         if pos == dest:
+            print(f"Destination reach in {t} steps; queue len = {len(Q)}")
             return cost, path  # return the cost and the path
 
         if (pos, dir) in visited:
@@ -88,47 +88,15 @@ def dijkstra3(board, M, start, dest):
         dirs = {(1, 0), (0, 1), (-1, 0), (0, -1)} - {(px, py), (-px, -py)}
         for d in dirs:
             new_cost = cost
-
-            # enter 4-10 moves in the chosen direction
-            for i in range(1, 3 + 1):
-                new_pos = tuple(map(operator.add, pos, d))
-                a, b = new_pos
-                if (a, b) not in board:
-                    continue
+            new_pos = pos
+            for i in range(1, at_most + 1):
+                new_pos = tuple(map(operator.add, new_pos, d))
                 if 0 <= new_pos[0] < h and 0 <= new_pos[1] < w:
                     new_cost += M[new_pos[0]][new_pos[1]]
-                    if i >= 1:
+                    path += [new_pos]
+                    if i >= at_least:
                         heapq.heappush(Q, (new_cost, new_pos, path + [new_pos], d))
-        if tick < 20:
-            print(len(Q))
     return float("inf"), []  # destination is unreachable
-
-
-def dijkstra(board, start, end, least, most):
-    tick = 0
-    Q = [(0, *start, 0, 0)]
-    visited = set()
-    while Q:
-        tick += 1
-        cost, x, y, px, py = heapq.heappop(Q)
-        if (x, y) == end:
-            return cost
-        if (x, y, px, py) in visited:
-            continue
-        visited.add((x, y, px, py))
-        # calculate turns only
-        dirs = {(1, 0), (0, 1), (-1, 0), (0, -1)} - {(px, py), (-px, -py)}
-        for dx, dy in dirs:
-            a, b, new_cost = x, y, cost
-            # enter 4-10 moves in the chosen direction
-            for i in range(1, most + 1):
-                a, b = a + dx, b + dy
-                if (a, b) in board:
-                    new_cost += board[a, b]
-                    if i >= least:
-                        heapq.heappush(Q, (new_cost, a, b, dx, dy))
-        if tick < 20:
-            print(len(Q))
 
 
 def print_map(M, path):
@@ -143,31 +111,21 @@ def print_map(M, path):
     print()
 
 
-def part1(input):
-    h, w = len(input), len(input[0])
-    M = input
-    board = {(i, j): int(cell) for i, row in enumerate(input) for j, cell in enumerate(row)}
+def part1_and_2(M):
+    board = {(i, j): int(cell) for i, row in enumerate(M) for j, cell in enumerate(row)}
 
-    # best_cost = search(M, (0, 0), (h - 1, w - 1))
     best_cost, path = dijkstra3(board, M, (0, 0), (h - 1, w - 1))
     print(f"Part 1: {best_cost}")
+    print_map(M, path)
 
-    # pt1
-    print(dijkstra(board, (0, 0), max(board), 1, 3))  # board, start, end, least, most
     # pt2
-    # print(dijkstra(board, (0, 0), max(board), 4, 10))
-
-    # print_map(M, path)
-    pass
-
-
-def part2(input):
-    print(f"Part 2: {None}")
-    pass
+    best_cost, path = dijkstra3(board, M, (0, 0), (h - 1, w - 1), at_least=5, at_most=10)
+    print(f"Part 2: {best_cost}")
+    print_map(M, path)
 
 
 if __name__ == "__main__":
     input = open(f"day{day}/input_{year}_{day}.txt", "r").read()
     input = [[int(ch) for ch in row] for row in input.splitlines()]
-    part1(input)
-    part2(input)
+    h, w = len(input), len(input[0])
+    part1_and_2(input)

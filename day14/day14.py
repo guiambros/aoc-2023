@@ -1,3 +1,4 @@
+import hashlib
 import operator
 import os
 import re
@@ -68,22 +69,36 @@ def calculate_score(m):
     return sum([(h - r) for r in range(h) for c in range(w) if m[r][c] == "O"])
 
 
-M = [list(line) for line in input]
-
-
 def part1(M):
-    M = rotate_map_clockwise(M)
-    tilt_right(M)
-    M = rotate_map_counterclockwise(M)
+    # M = rotate_map_clockwise(M)
+    # tilt_right(M)
+    # M = rotate_map_counterclockwise(M)
+    # score = calculate_score(M)
+    # print(f"Part 1: {score}")
+    # pass
+    tilt(M)
     score = calculate_score(M)
     print(f"Part 1: {score}")
-    pass
+    # pass
 
 
-import hashlib
+def tilt(M):
+    h = len(M)
+    w = len(M[0])
+    num_moves = 0
+
+    for r in range(h - 1, 0, -1):
+        for c in range(w):
+            if M[r][c] == "O" and M[r - 1][c] == ".":
+                M[r][c] = "."
+                M[r - 1][c] = "O"
+                num_moves += 1
+    if num_moves:
+        tilt(M)
+    return M
 
 
-def tilt_cycle(M, n=1):
+def tilt_cycle_orig(M, n=1):
     hash_cache = {}
     cycle_cache = {}
     cycle_start, cycle_end = float("inf"), float("-inf")
@@ -113,14 +128,33 @@ def tilt_cycle(M, n=1):
     return M
 
 
+def tilt_cycle(M, n=1):
+    for _ in range(n * 4):
+        print_map(M)
+        M = tilt(M)
+        M = rotate_map_clockwise(M)
+    print_map(M)
+    return M
+
+
+def print_map(M):
+    print("\n\n")
+    for row in M:
+        print("".join(row))
+
+
 def part2(M):
-    M = tilt_cycle(M, 1000000000)
-    # M = tilt_cycle(M, 3)
+    # M = tilt_cycle(M, 1000000000)
+    M = tilt_cycle(M, 3)
     score = calculate_score(M)
+    # print(f"Map:\n{M}\n\n")
+    # print(["".join(row) for row in M])
     print(f"Part 2: {score}")
     pass
 
 
+M = [list(line) for line in input]
+
 if __name__ == "__main__":
-    part1(M)
-    part2(M)
+    part1(deepcopy(M))
+    part2(deepcopy(M))
