@@ -31,8 +31,8 @@ input = open(f"day{day}/input_{year}_{day}.txt", "r").read()
 
 
 def workflow(parts, wfname):
-    print(f"Processing rule {wfname}")
-    for conditions in W[wfname]["conditions"]:
+    # print(f"Processing rule {wfname}")
+    for conditions in W[wfname]["rules"]:
         for condition in conditions.split(","):
             c, next_step = condition.split(":")
             pairs = parts.split(",")
@@ -45,7 +45,7 @@ def workflow(parts, wfname):
                 continue
 
     else:
-        return W[wfname]["outcomes"]
+        return W[wfname]["fallback"]
 
 
 def process_part(part):
@@ -53,15 +53,68 @@ def process_part(part):
     value = 0
     while True:
         outcome = workflow(part, next_wflow)
-        print(f"Processing part {part}, outcome: {outcome}")
+        # print(f"Processing part {part}, outcome: {outcome}")
         if outcome == "R":
             return 0
         elif outcome == "A":
             value = sum([int(c.split("=")[1]) for c in part.split(",")])
-            print(f"accepted part {part}, amount {value}")
             return value
         else:
             next_wflow = outcome
+
+
+def process_workflow_pt2():
+    accepted_ranges = []
+    rg = {key: (1, 4000) for key in "xmas"}
+    Q = [("in", rg)]
+    while Q:
+        wf, rg = Q.pop(0)
+        # print(f"Processing rule {wf}, current constraints {rg}")
+
+        for rule in W[wf]["rules"]:
+            c, next_step = rule.split(":")
+
+            if next_step == "":  # we're done with this workflow
+                accepted_ranges.append(rg)
+                break
+
+            # sample: wfname{a>1716:R,A}
+            v, op, val = re.search("([x|m|a|s])\s*([<>=]+)\s*(\d+)", c).groups()
+            T = dict(rg)
+            F = dict(rg)
+            if op == ">":
+                T[v] = (max(rg[v][0], int(val) + 1), rg[v][1])
+                F[v] = (rg[v][0], min(rg[v][1], int(val)))
+            elif op == "<":
+                T[v] = (rg[v][0], min(rg[v][1], int(val) - 1))
+                F[v] = (max(rg[v][0], int(val)), rg[v][1])
+
+            # possible outcomes: A, R, or next workflow
+            if next_step == "R":
+                pass
+            elif next_step == "A":
+                accepted_ranges.append(T)
+            else:
+                Q.append((next_step, T))
+
+            rg = F  # continue processing the flow with the remaining non-true elements
+
+        # process the fallback
+        fallback = W[wf]["fallback"]
+        if fallback == "R":
+            pass
+        elif fallback == "A":
+            accepted_ranges.append(rg)
+        else:
+            Q.append((fallback, rg))
+        pass
+
+    # count range span
+    total = 0
+    for rg in accepted_ranges:
+        deltas = [max(0, rg[key][1] - rg[key][0] + 1) for key in "xmas"]
+        total += reduce(operator.mul, deltas, 1)
+    return total
 
 
 def part1(input):
@@ -74,47 +127,11 @@ def part1(input):
 
 
 def part2(input):
-    # px{a<2006:qkq,m>2090:A,rfg}
-    # pv{a>1716:R,A}
-    # lnx{m>1548:A,A}
-    # rfg{s<537:gd,x>2440:R,A}
-    # qs{s>3448:A,lnx}
-    # qkq{x<1416:A,crn}
-    # crn{x>2662:A,R}
-    # in{s<1351:px,qqz}
-    # qqz{s>2770:qs,m<1801:hdj,R}
-    # gd{a>3333:R,R}
-    # hdj{m>838:A,pv}
     Q = []
     combinations = 0
-    for wfname, workflow in W.items():
-        for condition in workflow["conditions"]:
-            c, next_step = condition.split(":")
-            if next_step != "A":
-                continue
-            delta = 0
-            if ">" in c:
-                val = int(c.split(">")[1])
-                delta = 4000 - val
-            elif "<" in c:
-                val = int(c.split("<")[1])
-                delta = val
-            else:
-                print("Error")
-                sys.exit(0)
-            combinations += 3999 * 3999 * 3999 * delta
-            # pairs = parts.split(",")
-            # parts_val = {key: int(value) for key, value in (pair.split("=") for pair in pairs)}
-            # result = eval(c, parts_val)
-        print(f"Wworkflow {wfname}, workflow {workflow}, combinations {combinations}")
-    print(f"Part 2: {combinations}")
-    print(f"Part 2: {None}")
-    pass
+    result = process_workflow_pt2()
+    print(f"Part 2: {result}")
 
-
-# 167409079868000
-# 692600289949170
-# 693120000000000
 
 if __name__ == "__main__":
     # -- input in multiple lines
@@ -129,10 +146,9 @@ if __name__ == "__main__":
             break
         workflow_name, rules = line.split("{")
         rules = rules.strip("}").split(",")
-        outcomes = rules[-1]
+        fallback = rules[-1]
         rules = rules[:-1]
-        # assert len(rules) == 1
-        W[workflow_name] = {"conditions": rules, "outcomes": outcomes}
+        W[workflow_name] = {"rules": rules, "fallback": fallback}
         i += 1
         r += 1
 
@@ -141,14 +157,9 @@ if __name__ == "__main__":
     i += 1
     while i < len(input):
         line = input[i]
-        # x=787,m=2655,a=1222,s=2876
-        # for ch in ["x=", "m=", "a=", "s="]:
-        #    line = line.replace(ch, "")
-        # x, m, a, s = line.strip("{}").split(",")
-        # P[p] = {"x": x, "m": m, "a": a, "s": s}
         P[p] = line.strip("{}")
         p += 1
         i += 1
 
-    # part1(input)
+    part1(input)
     part2(input)
