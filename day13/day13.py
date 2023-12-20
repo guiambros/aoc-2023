@@ -6,8 +6,6 @@ from collections import defaultdict
 from copy import deepcopy
 from functools import reduce
 
-from sol import get_value
-
 # get current day
 cwd = sys.argv[0]
 if not ("day" in cwd):
@@ -24,104 +22,106 @@ input = [line for line in input.splitlines()]
 
 
 def read_input(input):
-    M = {}
-    mirror = 1
-    this_mirror = []
-    for line in input:
-        if len(line) < 2:
-            M[mirror] = this_mirror
+    def rotate(mirror):
+        return ["".join([mirror[j][i] for j in range(len(mirror))]) for i in range(len(mirror[0]))]
+
+    def to_bin(m):
+        return [sum(2**i if c == "#" else 0 for i, c in enumerate(row)) for row in m]
+
+    Mr, Mc, this_mirror = [], [], []
+    while input:
+        line = input.pop(0)
+        if len(line) == 0:
+            Mr.append(to_bin(this_mirror))
+            Mc.append(to_bin(rotate(this_mirror)))
             this_mirror = []
-            mirror += 1
             continue
-        this_mirror.append(list(line))
-    return M
+        this_mirror.append(line)
+    Mr.append(to_bin(this_mirror))
+    Mc.append(to_bin(rotate(this_mirror)))
+    return Mr, Mc
 
 
-def scan_horizontal(mirror):
-    def find_identical_rows(mirror):
-        h = len(mirror)
-        return [row for row in range(h) if all([mirror[row] == mirror[(row + 1) % h]])]
-
-    def chomp_rows(mirror, rows_to_chomp):
-        this_mirror = mirror.copy()
-        for row in reversed(rows_to_chomp):
-            this_mirror.pop(row)
-        return this_mirror
-
-    h = len(mirror)
-    w = len(mirror[0])
-    identical_rows = find_identical_rows(mirror)
-    if len(identical_rows) == 0:
-        return None
-
-    for row in identical_rows:
-        this_mirror = mirror.copy()
-        rows_to_chomp = [row, (row + 1) % h]
-        while len(this_mirror) > 2 and len(rows_to_chomp) > 0:
-            this_mirror = chomp_rows(this_mirror, rows_to_chomp)
-            rows_to_chomp = find_identical_rows(this_mirror)
-        if len(this_mirror) <= 1:
-            return row
-    return 0
+def find_mirror(M):
+    i = 1
+    found = []
+    while i < len(M):
+        if M[i] == M[i - 1]:
+            next = [M[i + delta] == M[i - delta - 1] for delta in range(1, min(i, len(M) - i))]
+            if all(next):
+                found.append(i)
+        i += 1
+    return found
 
 
-def scan_vertical(mirror, ishorizontal=False):
-    # transpose and call scan_horizontal
-    return
+def part1():
+    Rr, Rc = defaultdict(lambda: None), defaultdict(lambda: None)
 
-    h = len(mirror)
-    w = len(mirror[0])
+    score = 0
+    for num, M in enumerate(Mr):
+        pos = find_mirror(M)
+        if len(pos) > 1:
+            raise Exception(f"Found multiple mirrors for pattern {num}: {pos}")
+        elif len(pos) == 1:
+            Rr[num] = pos[0]
+            score += pos[0] * 100
 
-    col_start = [
-        col
-        for col in range(w)
-        if all([mirror[row][col] == mirror[row][(col + 1) % w] for row in range(h)])
-    ]
+    for num, M in enumerate(Mc):
+        pos = find_mirror(M)
+        if len(pos) > 1:
+            raise Exception(f"Found multiple mirrors for pattern {num}: {pos}")
+        elif len(pos) == 1:
+            Rc[num] = pos[0]
+            score += pos[0]
 
-    for i in range(w):
-        # check if immediate columns are the same
-        _this = i
-        _next = (i + 1) % w
-        c1 = [row[_this] for row in mirror]
-        c2 = [row[_next] for row in mirror]
-        if c1 != c2:
-            continue
-
-        is_palindrome = True
-        for j in range(1, (w - 1) // 2):
-            _next = (i + j + 1) % w
-            _prev = (i - j) % w
-            c1 = [row[_next] for row in mirror]
-            c2 = [row[_prev] for row in mirror]
-            if c1 != c2:
-                is_palindrome = False
-                break
-        if is_palindrome:
-            return i
-    return None
+    print(f"Part 1: {score}")
+    return Rr, Rc
 
 
-def part1(input):
-    M = read_input(input)
-    total = 0
-    for id, mirror in M.items():
-        row = scan_horizontal(mirror)
-        col = scan_vertical(mirror)
-        if row:
-            print(f"Mirror {id} found horizontal at row {row+1}")
-        if col:
-            print(f"Mirror {id} Found vertical at col {col+1}")
-        total += (col + 1 if col else 0) + 100 * (row + 1 if row else 0)
+def part2(Rr, Rc):
+    def count_bit_flips(a, b):
+        return bin(a ^ b).count("1")
 
-    print(f"Part 1: {total}")
-    pass
+    new_reflections = dict()
+    for num, M in enumerate(Mr):
+        for i in range(len(M)):
+            for j in range(i + 1, len(M)):
+                if count_bit_flips(M[i], M[j]) == 1:
+                    # try changing the smudge to # or . and see if the reflection changes
+                    opt = list(M)
+                    opt[j] = M[i]
+                    for pos in find_mirror(opt):
+                        if pos != Rr[num]:
+                            print(
+                                f"Found smudge pat {num} - bit flip row {i} ({M[i]}) and {j} ({M[j]}) -- mirror pos {pos}"
+                            )
+                            new_reflections[num] = pos
+                            break
+    score = sum([pos * 100 for pos in new_reflections.values()])
 
+    new_reflections = dict()
+    for num, M in enumerate(Mc):
+        for i in range(len(M)):
+            for j in range(i + 1, len(M)):
+                if count_bit_flips(M[i], M[j]) == 1:
+                    # try changing the smudge to # or . and see if the reflection changes
+                    opt = list(M)
+                    opt[j] = M[i]
+                    for pos in find_mirror(opt):
+                        if pos != Rc[num]:
+                            print(
+                                f"Found smudge pat {num} - bit flip col {i} ({M[i]}) and {j} ({M[j]}) -- mirror pos {pos}"
+                            )
+                            new_reflections[num] = pos
+                            break
+    score += sum([pos for pos in new_reflections.values()])
 
-def part2(input):
-    print(f"Part 2: {None}")
+    print(f"Part 2: {score}")
+    # assert score == 23479
     pass
 
 
 if __name__ == "__main__":
-    part1(input)
-    part2(input)
+    Mr, Mc = read_input(input)
+    Rr, Rc = part1()
+    part2(Rr, Rc)
