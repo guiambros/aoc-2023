@@ -45,41 +45,9 @@ def print_map(M, visited):
 
 
 @timer
-def part1_bruteforce(max_steps=64):
-    # brute force the solution. Works for small maps and few steps (<15), but
-    # exponential growth makes it infeasible for larger maps
-    #
-    visited = defaultdict(list)
-    to_visit = []
-
-    def visit_plot(pos, steps):
-        to_visit.append((pos, steps))
-
-        while steps <= max_steps:
-            pos, steps = to_visit.pop(0)
-            visited[steps].append(pos)
-            # print_map(M, visited)
-
-            all_pos = [tuple(map(operator.add, pos, GPS[direction])) for direction in GPS]
-            valid_pos = [
-                pos
-                for pos in all_pos
-                if 0 <= pos[0] < h and 0 <= pos[1] < w and M[pos[0]][pos[1]] != "#"
-            ]
-            for pos in valid_pos:
-                to_visit.append((pos, steps + 1))
-        return
-
-    visit_plot(start, 0)
-    print(f"Part 1: unique plots visited {len(set(visited[max_steps]))}")
-    pass
-
-
-@timer
 def part1(G, start, max_steps=64):
     steps = 0
     nodes = {start}
-
     while steps < max_steps:
         nodes = set(
             [
@@ -89,19 +57,21 @@ def part1(G, start, max_steps=64):
             ]
         )
         steps += 1
-
     print(f"Part 1: unique plots visited {len(nodes)}")
-    pass
+    return len(nodes)
 
 
-def part2():
-    print(f"Part 2: {None}")
-    pass
+def part2(G, start, max_steps=1000):
+    steps = part1(G, start, max_steps=max_steps)
+    print(f"Part 2: {steps}")
+    return steps
 
 
 if __name__ == "__main__":
     # reads input data and creates a graph
     G = nx.Graph()
+    G2 = nx.Graph()
+
     M = [line for line in input.splitlines()]
     h = len(M)
     w = len(M[0])
@@ -111,12 +81,37 @@ if __name__ == "__main__":
     for r, row in enumerate(M):
         for c, char in enumerate(row):
             G.add_node((r, c), ch=char)
+            G2.add_node((r, c), ch=char)
+
             if char != "#":
                 for direction in GPS:
                     pos = tuple(map(operator.add, (r, c), GPS[direction]))
+
+                    # Part 1
                     if 0 <= pos[0] < h and 0 <= pos[1] < w and M[pos[0]][pos[1]] != "#":
                         G.nodes[(r, c)][direction] = pos
+                        G2.nodes[(r, c)][direction] = pos
 
-    # part1_bruteforce(max_steps=13)
-    part1(G, start, max_steps=64)
-    part2()
+                    # Part 2: add wrapping around edges
+                    if pos[0] in [-1, h + 1] or pos[1] in [-1, w + 1]:
+                        # and
+                        pos = ((pos[0] + h) % h, (pos[1] + w) % w)
+                        if M[(pos[0] + h) % h][(pos[1] + w) % w] != "#":
+                            assert pos[0] >= 0
+                            assert pos[1] >= 0
+                            G2.nodes[(r, c)][direction] = pos
+
+    part1(G, start, max_steps=64)  ## 3841
+
+    # Part 2 is not going to work; need to look at the data and do it geometrically. Hate this
+    # type of puzzles. Going to skip it.
+    #
+    # This is a good explanation of the solution:
+    # https://github.com/villuna/aoc23/wiki/A-Geometric-solution-to-advent-of-code-2023,-day-21
+    #
+    # And here's a few solutions:
+    # https://github.com/democat3457/AdventOfCode/blob/ee5e3d922dde8330d49fc038942d61ff47254965/2023/day21.py
+    # https://github.com/Fadi88/AoC/blob/master/2023/day21/code.py
+    #
+    #
+    # part2(G2, start, max_steps=400)  ## 636391426712747
