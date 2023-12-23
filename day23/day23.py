@@ -1,12 +1,9 @@
 import logging
-import operator
-import os
+import pickle
 import re
 import sys
 import time
-from collections import defaultdict
-from copy import deepcopy
-from functools import cache, lru_cache, reduce
+from collections import deque
 
 import networkx as nx
 
@@ -71,74 +68,79 @@ def connect_edges(G, is_part2=False):
             if (r + dr, c + dc) in G.nodes and input[r + dr][c + dc] != "#":
                 ch = input[r + dr][c + dc]
                 if ch == "." or (ch == direction or is_part2):
-                    G.add_edge(node, (r + dr, c + dc))
+                    G.add_edge(node, (r + dr, c + dc), weight=1)
 
+    # For part 2, it takes too long to operate with a large graph, so we simplify
+    # the graph by mergin all nodes that have a single neighbor connected
+    logging.info(f"Before contraction, graph had {len(G.nodes)} nodes and {len(G.edges)} edges")
+    if is_part2:
+        G = G.to_undirected()
+        pass
+
+    for node in list(G.nodes):  # Use list to create a static copy of the nodes
+        neighbors = list(G.neighbors(node))
+        if len(neighbors) == 2 and not G.has_edge(neighbors[0], neighbors[1]):
+            weight = G[node][neighbors[0]]["weight"] + G[node][neighbors[1]]["weight"]
+            G = nx.contracted_nodes(G, neighbors[0], node, self_loops=False)
+            G[neighbors[0]][neighbors[1]]["weight"] = weight
+    logging.info(f"After contraction, graph has {len(G.nodes)} nodes and {len(G.edges)} edges")
+
+    # save graph to a file, in case execution is interrupted
+    with open(f"day{day}/graph-{h}x{w}.gpickle", "wb") as f:
+        pickle.dump(G, f, pickle.HIGHEST_PROTOCOL)
     return G
-
-
-def manhattan_distance(a, b):
-    return 1 / (abs(a[0] - b[0]) + abs(a[1] - b[1]) + 1e-10)
-
-
-def longest_path_astar(G, start, finish):
-    # Add a weight of 1 to all edges
-    for u, v, data in G.edges(data=True):
-        data["weight"] = 10
-
-    # Use the A* algorithm to find the shortest path
-    path = nx.astar_path(
-        G, source=start, target=finish, heuristic=manhattan_distance, weight="weight"
-    )
-
-    return path
-
-
-def longest_path_dijkstra(G, start, finish):
-    # Add a weight of 1 to all edges
-    for u, v, data in G.edges(data=True):
-        data["weight"] = 10
-
-    # Use Dijkstra's algorithm to find the shortest path
-    path = nx.longest_path_astar(G, source=start, target=finish, weight="weight")
-
-    return path
-
-
-from collections import deque
-
-
-def longest_path_dfs(G, start, finish):
-    stack = deque([(start, [start])])
-    longest_path = []
-    while stack:
-        (node, path) = stack.pop()
-        for next in set(G[node]) - set(path):
-            if next == finish:
-                longest_path = max(longest_path, path + [next], key=len)
-            else:
-                stack.append((next, path + [next]))
-    return longest_path
 
 
 def inverse_manhattan_distance(a, b):
     return 1 / (abs(a[0] - b[0]) + abs(a[1] - b[1]) + 1e-10)
 
 
-def longest_path_dfs_v2(G, start, finish):
+def longest_path_dfs(G, start, finish):
     stack = deque([(start, [start])])
+    logging.info(f"starting longest_path_dfs()...")
     longest_path = []
     while stack:
         (node, path) = stack.pop()
-        neighbors = list(set(G[node]) - set(path))
-        # Sort the neighbors by their inverse Manhattan distance to the finish node
-        neighbors.sort(key=lambda x: inverse_manhattan_distance(x, finish), reverse=True)
-        for next in neighbors:
+        for next in set(G[node]) - set(path):
             if next == finish:
                 longest_path = max(longest_path, path + [next], key=len)
                 logging.info(f"Longest path so far: {len(longest_path) - 1}")
             else:
                 stack.append((next, path + [next]))
     return longest_path
+
+
+# This is the same as longest_path_dfs(), but it operates on the contracted graph
+# (i.e., it uses the "weight" properly of each edge), and sorts the neighbors by
+# their inverse Manhattan distance, so we can explore all distant paths *before*
+# going towards the finish node.
+#
+def longest_path_dfs_contracted(G, start, finish):
+    stack = deque(
+        [(start, [(start, 0)])]
+    )  # The second element of the tuple is the total weight of the path
+    logging.info("Starting longest_path_dfs_contracted()...")
+    longest_path = []
+    longest_weight = 0
+    while stack:
+        (node, path) = stack.pop()
+        neighbors = list(set(G[node]) - set(n for n, w in path))
+        # Sort the neighbors by their inverse Manhattan distance to the finish node
+        neighbors.sort(key=lambda x: inverse_manhattan_distance(x, finish), reverse=True)
+
+        for next in neighbors:
+            weight = (
+                path[-1][1] + G[node][next]["weight"]
+            )  # The weight of the new path is the weight of the old path plus the weight of the edge
+
+            if next == finish:
+                if weight > longest_weight:  # Compare the total weights of the paths
+                    longest_path = path + [(next, weight)]
+                    longest_weight = weight
+                    logging.info(f"Longest weight so far: {longest_weight}")
+            else:
+                stack.append((next, path + [(next, weight)]))
+    return [n for n, w in longest_path], longest_weight  # Return the nodes in the path
 
 
 def longest_simple_path(G, start, finish, cutoff):
@@ -158,15 +160,20 @@ def part1(G):
 
 
 @timer
-def part2(input):
+def part2(G):
     logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
-    connect_edges(G, is_part2=True)
+
+    try:
+        with open(f"day{day}/graph-{h}x{w}.gpickle", "rb") as f:
+            G = pickle.load(f)
+            logging.info(f"Loaded previously stored graph from file {f}")
+    except FileNotFoundError:
+        connect_edges(G, is_part2=True)
+
+    plot_graph(G)
     # path = longest_simple_path(G, start, finish, cutoff=10000)  # too slow for part2
-    # path = nx.dag_longest_path(G, start, finish) # only works on DAGs (no cycles)
-    # path = longest_path_astar(G, start, finish)  # too short (1382); even shorted than pt1
-    path = longest_path_dfs_v2(G, start, finish)
-    print(f"Part 1: {len(path)-1}")
-    print_map(G, path)
+    path, weight = longest_path_dfs_contracted(G, start, finish)
+    print(f"Part 2: {weight}")
 
 
 if __name__ == "__main__":
@@ -184,5 +191,5 @@ if __name__ == "__main__":
             if input[r][c] in [".", "<", ">", "^", "v"]:
                 G.add_node((r, c), slope=input[r][c])
 
-    # part1(G.copy()) # 2190
-    part2(G.copy())  # 6258
+    part1(G.copy())  # 2190
+    part2(G.copy())
