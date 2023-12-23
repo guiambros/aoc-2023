@@ -6,6 +6,7 @@ import time
 from collections import defaultdict
 from copy import deepcopy
 from functools import cache, lru_cache, reduce
+from typing import Any, List, Tuple
 
 
 def timer(func):
@@ -29,121 +30,130 @@ day = int(re.search("\\/day(\\d+)", cwd).group(1))
 input = open(f"day{day}/input_{year}_{day}.txt", "r").read()
 
 
+class Brick:
+    def __init__(self, start: tuple, end: tuple, id=None) -> None:
+        self.x1 = start[0]
+        self.y1 = start[1]
+        self.z1 = start[2]
+        self.x2 = end[0]
+        self.y2 = end[1]
+        self.z2 = end[2]
+        self.id = id
+        pass
+
+    def intersects(self, other, delta_z: int = 0) -> bool:
+        return (
+            self.x1 <= other.x2
+            and self.x2 >= other.x1
+            and self.y1 <= other.y2
+            and self.y2 >= other.y1
+            and self.z1 <= other.z2 + delta_z
+            and self.z2 >= other.z1 + delta_z
+        )
+
+    def key_z(self) -> int:
+        return max(self.z1, self.z2)
+
+    def __str__(self) -> str:
+        return self.__repr__()
+
+    def __repr__(self) -> str:
+        return f"Brick {self.id}: ({self.x1},{self.y1},{self.z1}) ~ ({self.x2},{self.y2},{self.z2})"
+
+
 class Map:
-    def __init__(self):
-        self._map = defaultdict(int)
+    def __init__(self, B: list) -> None:
+        self.bricks = B
 
-    def set(self, x, y, z, value):
-        self._map[(x, y, z)] = value
+    def move(self, b: Brick, new_z: int) -> None:
+        if conflict := self.find_bricks_pos(b.x1, b.y1, b.z1, b.id):
+            print(f"Brick {b.id} can not be moved to {new_z} -- conflicts with {conflict}")
+            raise Exception("Brick can not be moved")
+        delta = new_z - b.z1
+        b.z1 += delta
+        b.z2 += delta
+        return
 
-    def set_range(self, c1, c2, id):
-        for x in range(c1[0], c2[0] + 1):
-            for y in range(c1[1], c2[1] + 1):
-                for z in range(c1[2], c2[2] + 1):
-                    self.set(x, y, z, id)
+    def lower_settled_bricks(self, id) -> list:
+        return [b for b in self.bricks[:id]]
 
-    def get(self, x, y, z):
-        return self._map.get((x, y, z))
+    def upper_bricks(self, id) -> list:
+        return [b for b in self.bricks[id + 1 :]]
 
-    def remove(self, x, y, z):
-        del self._map[(x, y, z)]
+    def find_bricks_above(self, b: Brick) -> list:
+        return [
+            o
+            for o in self.upper_bricks(b.id)
+            if b.z1 <= (o.z1 - 1) <= b.z2 and o.intersects(b, delta_z=1)
+        ]
 
-    def contains(self, x, y, z):
-        return (x, y, z) in self._map
+    def find_bricks_below(self, b: Brick) -> list:
+        return [o for o in self.lower_settled_bricks(b.id) if o.intersects(b, delta_z=-1)]
 
-    def get_brick_coords(self, id):
-        coords = []
-        for k, v in self._map.items():
-            if v == id:
-                coords.append(k)
-        return coords
-
-    def get_brick_id(self, coords):
-        brick_ids = set()
-        for c in coords:
-            brick_ids.add(0 if c[2] == 0 else self.get(c[0], c[1], c[2]))
-        brick_ids.discard(None)
-        return brick_ids
-
-    def del_brick(self, id):
-        coords = self.get_brick_coords(id)
-        for c in coords:
-            self.remove(c[0], c[1], c[2])
-
-    def is_empty(self, coords_array):
-        for c in coords_array:
-            if self.contains(c[0], c[1], c[2]):
-                return False
-        return True
-
-    def cnt_bricks_below(self, id):
-        coords = self.get_brick_coords(id)
-        min_z = min([c[2] for c in coords])
-        coords_below = list(set([(c[0], c[1], min_z - 1) for c in coords]))
-        # assert None not in self.get_brick_id(coords_below)
-        return len(self.get_brick_id(coords_below))
-
-    def find_bricks_above(self, coords, my_id):
-        ids = self.get_brick_id([[c[0], c[1], c[2] + 1] for c in coords])
-        if ids == {my_id}:
-            return self.find_bricks_above([[c[0], c[1], c[2] + 1] for c in coords], my_id)
-        return ids
+    def find_bricks_pos(self, x: int, y: int, z: int, id: int) -> list:
+        found = [
+            o for o in self.bricks if o.x1 <= x <= o.x2 and o.y1 == y <= o.y2 and o.z1 <= z <= o.z2
+        ]
+        return [f for f in found if f.id != id]
 
 
-def part1(B):
-    M = Map()
-    for id, b in enumerate(B):
-        M.set_range(b[0], b[1], id + 1)
-
+@timer
+def part1(M: list) -> list:
     # make bricks fall
-    for b in range(1, map_size + 1):
+    zmax_highest_settled_brick = B[0].z2
+    for _, b in enumerate(M.bricks):
+        if _ % 100 == 0:
+            print(f"Processing brick {_} of {map_size}")
+
         mod_flag = True
         while mod_flag:
             mod_flag = False
-            brick_coords = M.get_brick_coords(b)
-            min_z = min([c[2] for c in brick_coords])
-            if min_z == 1:
+
+            # if brick is already on the min_z floor, stop
+            if b.z1 == 1:
                 break
-            c_below = list(set([(c[0], c[1], min_z - 1) for c in M.get_brick_coords(b)]))
-            if M.is_empty(c_below):
-                M.del_brick(b)
-                for c in brick_coords:
-                    M.set(c[0], c[1], c[2] - 1, b)
+
+            # if we're far from the current floor, fast track them down
+            if b.z1 > zmax_highest_settled_brick:
+                M.move(b, zmax_highest_settled_brick + 1)
+
+            # now move this brick carefully down, avoiding overlapping other bricks
+            while min(b.z1, b.z2) > 1 and not M.find_bricks_below(b):
+                M.move(b, b.z1 - 1)
                 mod_flag = True
+            zmax_highest_settled_brick = max(b.z2, zmax_highest_settled_brick)
 
-    # now decide which bricks can be removed
-    cnt = 0
-    for b in range(1, map_size + 1):
-        bricks_above = M.find_bricks_above(M.get_brick_coords(b), my_id=b)
-        can_be_removed = True
-        for b_above in bricks_above:
-            if M.cnt_bricks_below(b_above) < 2:
-                can_be_removed = False
-                print(f"Brick {b} can NOT be safely removed")
-                break
-        if can_be_removed:
-            print(f"Brick {b} can be safely removed")
-            cnt += 1
-        pass
+    # check which bricks can be removed without collapsing the structure
+    can_be_removed = []
+    for b in M.bricks:
+        U = M.find_bricks_above(b)
+        cbr = all([len(M.find_bricks_below(u)) > 1 for u in U])
+        if cbr:
+            can_be_removed.append(b)
+            print(f"Brick {b.id} can be safely removed")
 
-    print(f"Part 1: {cnt}")
-    pass
+    print(f"Part 1: {len(can_be_removed)}")
+    return can_be_removed
 
 
 def part2(input):
+    # Part 2 is too painful; decided to skip it.
+
     print(f"Part 2: {None}")
     pass
 
 
 if __name__ == "__main__":
     map_size = len(input.splitlines())
-
-    # -- input in multiple lines
-    b_start = [
-        tuple([int(i) for i in line.split("~")[0].split(",")]) for line in input.splitlines()
-    ]
-    b_end = [tuple([int(i) for i in line.split("~")[1].split(",")]) for line in input.splitlines()]
-
-    B = [(bs, be) for bs, be in zip(b_start, b_end)]
-    part1(B)  # 401
-    part2(B)  # 63491
+    B = []
+    for id, line in enumerate(input.splitlines()):
+        b_start = tuple([int(i) for i in line.split("~")[0].split(",")])
+        b_end = tuple([int(i) for i in line.split("~")[1].split(",")])
+        B.append(Brick(b_start, b_end, id))
+    B.sort(key=lambda z: z.key_z())
+    # reorder IDs
+    for i, b in enumerate(B):
+        b.id = i
+    M = Map(B)
+    part1(M)  # 401
+    part2(M)  # 63491
