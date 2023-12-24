@@ -104,7 +104,6 @@ class Box:
 
 def focusing_power(box_no, slot, focus_length):
     return (box_no + 1) * (slot + 1) * focus_length
-    pass
 
 
 def score_pt2(B):
