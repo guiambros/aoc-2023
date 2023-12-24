@@ -1,16 +1,10 @@
-import operator
-import os
 import random
 import re
 import statistics
 import sys
 import time
-from collections import defaultdict
-from copy import deepcopy
-from functools import cache, lru_cache, reduce
 from itertools import combinations
 
-import numpy as np
 import sympy as sp
 from scipy.optimize import fsolve
 
@@ -102,15 +96,15 @@ def equations(vars, object_positions, object_velocities):
 
 # For part two, we need to find 6 variables: (px, py, pz), and velocity vector (vx, vy, vz).
 #
-# For each hailstone, we know we'll intercept at a time tA, so we add 1 unknown variable
+# For each hailstone, we know we'll intercept at a time tA, so it adds 1 unknown variable.
 # This means we need a total of 3 hailstone trajectories to be able to find our answer
 # (9 equations, for 6 unknowns + 3 intercept times)
 #
 # I tried numerically first, but it doesn't converge nicely to the answer; probably
 # due to numerical instability. My brute force approach was to try 1000 random combinations
-# of 3 hailstones, and take the mode of the results. Not nice, but it works.
+# of 3 hailstones, and take the mode of the results. Not nice, but it works :)
 #
-# I then solved symbolically using SymPy, and it worked beautifully :)
+# I then solved symbolically using SymPy, and it worked beautifully.
 #
 def part2_numerically():
     all_res = []
@@ -198,7 +192,6 @@ def part2_symbolically():
 
 
 if __name__ == "__main__":
-    # -- input in multiple lines
     H = []
     input = [line for line in input.splitlines()]
     for l in input:
