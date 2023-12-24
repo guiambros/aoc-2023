@@ -57,7 +57,7 @@ def connect_edges(G, is_part2=False):
 
         if input[r][c] != "." and not is_part2:
             # we're on a slope; connect only to the direction it points to
-            G.add_edge(node, (r + GPS[input[r][c]][0], c + GPS[input[r][c]][1]))
+            G.add_edge(node, (r + GPS[input[r][c]][0], c + GPS[input[r][c]][1]), weight=1)
             continue
 
         for direction, (dr, dc) in GPS.items():
@@ -71,19 +71,18 @@ def connect_edges(G, is_part2=False):
                     G.add_edge(node, (r + dr, c + dc), weight=1)
 
     # For part 2, it takes too long to operate with a large graph, so we simplify
-    # the graph by mergin all nodes that have a single neighbor connected
+    # the graph by merging all nodes that have a single neighbor connected
     logging.info(f"Before contraction, graph had {len(G.nodes)} nodes and {len(G.edges)} edges")
     if is_part2:
         G = G.to_undirected()
-        pass
 
-    for node in list(G.nodes):  # Use list to create a static copy of the nodes
-        neighbors = list(G.neighbors(node))
-        if len(neighbors) == 2 and not G.has_edge(neighbors[0], neighbors[1]):
-            weight = G[node][neighbors[0]]["weight"] + G[node][neighbors[1]]["weight"]
-            G = nx.contracted_nodes(G, neighbors[0], node, self_loops=False)
-            G[neighbors[0]][neighbors[1]]["weight"] = weight
-    logging.info(f"After contraction, graph has {len(G.nodes)} nodes and {len(G.edges)} edges")
+        for node in list(G.nodes):  # Use list to create a static copy of the nodes
+            neighbors = list(G.neighbors(node))
+            if len(neighbors) == 2 and not G.has_edge(neighbors[0], neighbors[1]):
+                weight = G[node][neighbors[0]]["weight"] + G[node][neighbors[1]]["weight"]
+                G = nx.contracted_nodes(G, neighbors[0], node, self_loops=False)
+                G[neighbors[0]][neighbors[1]]["weight"] = weight
+        logging.info(f"After contraction, graph has {len(G.nodes)} nodes and {len(G.edges)} edges")
 
     # save graph to a file, in case execution is interrupted
     with open(f"day{day}/graph-{h}x{w}.gpickle", "wb") as f:
@@ -114,6 +113,8 @@ def longest_path_dfs(G, start, finish):
 # (i.e., it uses the "weight" properly of each edge), and sorts the neighbors by
 # their inverse Manhattan distance, so we can explore all distant paths *before*
 # going towards the finish node.
+#
+# This is super slow (~10min), but it works well enough for today, so leaving as it is.
 #
 def longest_path_dfs_contracted(G, start, finish):
     stack = deque(
@@ -191,5 +192,5 @@ if __name__ == "__main__":
             if input[r][c] in [".", "<", ">", "^", "v"]:
                 G.add_node((r, c), slope=input[r][c])
 
-    part1(G.copy())  # 2190
+    # part1(G.copy())  # 2190
     part2(G.copy())
