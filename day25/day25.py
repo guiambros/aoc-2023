@@ -100,15 +100,15 @@ if __name__ == "__main__":
             G.add_node(n)
             G.add_edge(node, n)
 
-    plt_graph = True
+    plt_graph = False
 
     # Option 1: visualize the graph and identify the 3 wires to cut, then cut the wires
     if plt_graph:
-        # print_graph(G)
-        print_graph_bokeh(G)
-        # G.remove_edge("btp", "qxr")
-        # G.remove_edge("bqq", "rxt")
-        # G.remove_edge("vfx", "bgl")
+        print_graph(G)
+        # print_graph_bokeh(G)
+        G.remove_edge("btp", "qxr")
+        G.remove_edge("bqq", "rxt")
+        G.remove_edge("vfx", "bgl")
 
     # Option 2: use networkx to find the minimum edge cut
     print(cuts := find_cuts())
