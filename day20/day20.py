@@ -64,7 +64,7 @@ class Component:
             raise Exception(f"Invalid signal {msg.signal}")
 
         self.output = self.ff_memory
-        print(f"(component) flipflop {self.label} changed from {prev_output} to {self.output}")
+        log(f"(component) flipflop {self.label} changed from {prev_output} to {self.output}")
 
     def nand(self, msg: Message):
         prev_output = self.output
@@ -76,12 +76,12 @@ class Component:
             self.output = "H"  # some input == low -> output = high
         # if prev_output != self.output:
         MQ.send(self.label, self.connected_to, self.output)
-        print(f"(component) nand {self.label} changed from {prev_output} to {self.output}")
+        log(f"(component) nand {self.label} changed from {prev_output} to {self.output}")
 
     def wire(self):
         # MQ.send(self.label, self.connected_to, self.output)
         self.output = "L"
-        print(f"(component) wire {self.label} sent pulse L")
+        log(f"(component) wire {self.label} sent pulse L")
 
     def process_signal(self, msg: Message):
         if self.type == "%":
@@ -116,7 +116,7 @@ class MessageQueue:
         for c in dest:
             msg = Message(src, c, signal)
             self.queue.append(msg)
-            print(f"(add to queue) send {signal} to {c} (src = {src})")
+            log(f"(add to queue) send {signal} to {c} (src = {src})")
             if signal == "L":
                 self.pulse_cnt_low += 1
             else:
@@ -125,26 +125,25 @@ class MessageQueue:
     def dispatch(self) -> None:
         while len(self.queue) > 0:
             message = self.queue.pop(0)
-            print(f"(dispatch) {message.signal} from {message._from} to {message._to}")
+            log(f"(dispatch) {message.signal} from {message._from} to {message._to}")
             if self.is_part2 and message._to == "rx" and message.signal == "L":
-                print(f"(found) Message to {message._to} dropped; component does not exist")
+                log(f"(found) Message to {message._to} dropped; component does not exist")
                 raise Exception("Found rx")
             elif message._to not in C:
-                print(f"(not found) Message to {message._to} dropped; component does not exist")
+                log(f"(not found) Message to {message._to} dropped; component does not exist")
             else:
                 dest = C[message._to]
                 dest.process_signal(message)  # sends the signal to destination
 
-    def monitor(self, pin):
-        print(f"Monitoring pin {pin}...")
-        while True:
-            print(f"Output {pin} = {C[pin].output}")
-            time.sleep(1)
+
+def log(msg):
+    if logging_enabled:
+        print(msg)
 
 
 def press_button(n, is_part2=False):
     cnt = 0
-    print(f"--- Starting cycle of {n} button presses...")
+    log(f"--- Starting cycle of {n} button presses...")
     MQ.is_part2 = is_part2
 
     for i in range(n):
@@ -154,15 +153,20 @@ def press_button(n, is_part2=False):
         MQ.send(dest, C[dest].connected_to, "L")
         MQ.dispatch()
 
-        print(
+        log(
             f"-- Button press #{i+1} -- dispatched {MQ.pulse_cnt_low} low pulses and {MQ.pulse_cnt_high} high pulses"
         )
-        print(f"-- Output {[str(C[c].label) + '=' + str(C[c].output) for c in C]}")
-        print("\n\n\n")
-        if False and is_part2:
-            print(f"Part 2: {i+1} button presses to get output of rx to pulse low")
-            cnt = i
-            break
+        log(f"-- Output {[str(C[c].label) + '=' + str(C[c].output) for c in C]}")
+        log("\n\n\n")
+
+        if is_part2:
+            print(f"#{i:<7}   ", end="")
+            for c in nands:
+                print(f"{c} = {C[c].output}   ", end="")
+            print()
+            # print(f"Part 2: {i+1} button presses to get output of rx to pulse low")
+            # cnt = i
+            # break
     return (MQ.pulse_cnt_low, MQ.pulse_cnt_high) if is_part2 == False else cnt + 1
 
 
@@ -177,14 +181,60 @@ def part2():
     pass
 
 
+import graphviz
+
+
+def graph_components():
+    dot = graphviz.Digraph()
+
+    # Add nodes
+    for label, component in C.items():
+        if component.type == "%":
+            dot.node(
+                label,
+                shape="square",
+                fillcolor="lightblue",
+                style="filled",
+                fontsize="20",
+                fontname="bold",
+            )
+        elif component.type == "&":
+            dot.node(
+                label,
+                shape="star",
+                fillcolor="lightyellow",
+                style="filled",
+                fontsize="20",
+                fontname="bold",
+            )
+        else:
+            dot.node(
+                label,
+                shape="oval",
+                fillcolor="pink",
+                style="filled",
+                fontsize="20",
+                fontname="bold",
+            )
+
+    # Add edges
+    for label, component in C.items():
+        for connected_to in component.connected_to:
+            dot.edge(label, connected_to)
+
+    # Render the graph to a file (e.g., components.gv.pdf)
+    dot.render("components.gv", view=True)
+
+
 if __name__ == "__main__":
     LOW = "L"
     HIGH = "H"
     input = [line for line in input.splitlines()]
+    logging_enabled = False
     C = {}  # components
     MQ = MessageQueue()  # queue
     connected_outputs = defaultdict(int)
-
+    nands = []
     for line in input:
         label, rest = line.split(" -> ")
         component_type = label[0]
@@ -193,9 +243,12 @@ if __name__ == "__main__":
         C[label] = Component(label, component_type, connected_to)
         for c in connected_to:
             connected_outputs[c] += 1
+        if component_type == "&":
+            nands.append(label)
 
     # part1()
-    part2()
+    # part2()  # 238815727638557 button presses
+    graph_components()
 
 
 # broadcaster -> a, b, c
