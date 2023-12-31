@@ -1,12 +1,10 @@
-import operator
-import os
 import re
 import sys
 import time
 from collections import defaultdict
-from copy import deepcopy
-from functools import cache, lru_cache, reduce
-
+import math
+from functools import reduce
+import graphviz
 
 def timer(func):
     def wrapper(*args, **kwargs):
@@ -53,8 +51,6 @@ class Component:
 
     def flipflop(self, msg: Message):
         prev_output = self.output
-        # if len(self.connected_to) > 1:
-        #    raise Exception("Not a flipflop")
         if msg.signal == "L":
             self.ff_memory = "H" if self.ff_memory == "L" else "L"
             MQ.send(self.label, self.connected_to, self.ff_memory)
@@ -74,12 +70,10 @@ class Component:
             self.output = "L"  # all inputs == high -> output = low
         else:
             self.output = "H"  # some input == low -> output = high
-        # if prev_output != self.output:
         MQ.send(self.label, self.connected_to, self.output)
         log(f"(component) nand {self.label} changed from {prev_output} to {self.output}")
 
     def wire(self):
-        # MQ.send(self.label, self.connected_to, self.output)
         self.output = "L"
         log(f"(component) wire {self.label} sent pulse L")
 
@@ -104,6 +98,15 @@ class MessageQueue:
         self.pulse_cnt_low = 0
         self.pulse_cnt_high = 0
         self.is_part2 = False
+        self.part2_cycle_len = defaultdict(list)
+
+        # NANDs to monitor for part 2; obtained by visual inspection.
+        # Option 1: use graph_components()
+        # Option 2: check which component are connected to rx ("nc"), and
+        #           then find NANDs connected to those components.
+        # nands_to_watch = ["lk", "fn", "fh", "hh"] 
+        source_to_rx = [k for k,v in C.items() if "rx" in v.connected_to][0]
+        self.part2_nands_to_watch = [k for k,v in C.items() if source_to_rx in v.connected_to]
 
     def reset_cnt(self):
         self.pulse_cnt_low = 0
@@ -113,6 +116,12 @@ class MessageQueue:
         self.pulse_cnt_low += 1
 
     def send(self, src: str, dest: list, signal: str) -> None:
+        # Part 2 -- Monitor the cycle length of  key NANDs in the output pipeline
+        global button_press_no
+        if src in self.part2_nands_to_watch and signal=="H":
+            self.part2_cycle_len[src].append(button_press_no)
+
+        # Send the signal to all connected outputs
         for c in dest:
             msg = Message(src, c, signal)
             self.queue.append(msg)
@@ -142,46 +151,42 @@ def log(msg):
 
 
 def press_button(n, is_part2=False):
-    cnt = 0
+    global button_press_no
+    global nands_to_watch
+
     log(f"--- Starting cycle of {n} button presses...")
     MQ.is_part2 = is_part2
 
     for i in range(n):
-        # MQ.reset_cnt()
+        button_press_no = i
         dest = "broadcaster"
-        MQ.inc_low_cnt()  # button press
+        MQ.inc_low_cnt()
         MQ.send(dest, C[dest].connected_to, "L")
         MQ.dispatch()
+        log(f"-- Button press #{i+1} -- dispatched {MQ.pulse_cnt_low} low + {MQ.pulse_cnt_high} high pulses")
+        log(f"-- Output {[str(C[c].label) + '=' + str(C[c].output) for c in C]}\n\n")
 
-        log(
-            f"-- Button press #{i+1} -- dispatched {MQ.pulse_cnt_low} low pulses and {MQ.pulse_cnt_high} high pulses"
-        )
-        log(f"-- Output {[str(C[c].label) + '=' + str(C[c].output) for c in C]}")
-        log("\n\n\n")
+        if is_part2 and i % 1000 == 0:
+            msg = f"#{i:<7} "
+            for c in MQ.part2_nands_to_watch:
+                if len(MQ.part2_cycle_len[c]) > 1:
+                    msg += f" {c} @ {MQ.part2_cycle_len[c][-1] - MQ.part2_cycle_len[c][-2]}"
+            log(msg)
+    return (MQ.pulse_cnt_low, MQ.pulse_cnt_high) if is_part2 == False else MQ.part2_cycle_len
 
-        if is_part2:
-            print(f"#{i:<7}   ", end="")
-            for c in nands:
-                print(f"{c} = {C[c].output}   ", end="")
-            print()
-            # print(f"Part 2: {i+1} button presses to get output of rx to pulse low")
-            # cnt = i
-            # break
-    return (MQ.pulse_cnt_low, MQ.pulse_cnt_high) if is_part2 == False else cnt + 1
-
+def lcm(numbers):
+    def lcm2(a,b):
+        return abs(a*b) // math.gcd(a, b)
+    return reduce(lcm2, numbers, 1)
 
 def part1():
     low_cnt, high_cnt = press_button(1000)
     print(f"Part 1: {low_cnt} low pulses + {high_cnt} high pulses = {low_cnt*high_cnt}")
 
-
 def part2():
-    press_button(100000, is_part2=True)
-    print(f"Part 2: {None}")
-    pass
-
-
-import graphviz
+    cycle_len = press_button(15000, is_part2=True)
+    cycles = [series[-1] - series[-2] for _, series in cycle_len.items()]
+    print(f"Part 2: Cycles {cycles}, lcm = {lcm(cycles)}")
 
 
 def graph_components():
@@ -227,14 +232,11 @@ def graph_components():
 
 
 if __name__ == "__main__":
-    LOW = "L"
-    HIGH = "H"
+    LOW, HIGH = "L", "H"
     input = [line for line in input.splitlines()]
     logging_enabled = False
-    C = {}  # components
-    MQ = MessageQueue()  # queue
-    connected_outputs = defaultdict(int)
-    nands = []
+    C, nands, connected_outputs = {}, [], defaultdict(int)  # components
+
     for line in input:
         label, rest = line.split(" -> ")
         component_type = label[0]
@@ -246,13 +248,7 @@ if __name__ == "__main__":
         if component_type == "&":
             nands.append(label)
 
-    # part1()
-    # part2()  # 238815727638557 button presses
-    graph_components()
-
-
-# broadcaster -> a, b, c
-# %a -> b
-# %b -> c
-# %c -> inv
-# &inv -> a
+    button_press_no = 0 # used in part 2
+    MQ = MessageQueue()  # queue
+    part1() # 1020211150 (18950 low + 53837 high pulses)
+    part2()  # 238815727638557 button presses
